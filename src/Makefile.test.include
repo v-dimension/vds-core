@@ -1,0 +1,214 @@
+TESTS += test/test_bitcoin
+bin_PROGRAMS += test/test_bitcoin
+noinst_PROGRAMS += test/test_bitcoin_fuzzy
+TEST_SRCDIR = test
+TEST_BINARY=test/test_bitcoin$(EXEEXT)
+
+
+EXTRA_DIST += \
+  test/bctest.py \
+  test/bitcoin-util-test.py \
+  test/data/bitcoin-util-test.json \
+  test/data/blanktx.hex \
+  test/data/tt-delin1-out.hex \
+  test/data/tt-delout1-out.hex \
+  test/data/tt-locktime317000-out.hex \
+  test/data/tx394b54bb.hex \
+  test/data/txcreate1.hex \
+  test/data/txcreate2.hex \
+  test/data/txcreatesign.hex
+
+JSON_TEST_FILES = \
+  test/data/script_valid.json \
+  test/data/script_tests.json \
+  test/data/base58_keys_valid.json \
+  test/data/base58_encode_decode.json \
+  test/data/base58_keys_invalid.json \
+  test/data/script_invalid.json \
+  test/data/tx_invalid_checktx.json \
+  test/data/tx_invalid_verify.json \
+  test/data/tx_valid.json \
+  test/data/sighash.json \
+  test/data/merkle_roots.json \
+  test/data/merkle_roots_empty.json \
+  test/data/merkle_serialization.json \
+  test/data/merkle_witness_serialization.json \
+  test/data/merkle_path.json \
+  test/data/merkle_commitments.json \
+  test/data/merkle_roots_sapling.json \
+  test/data/merkle_roots_empty_sapling.json \
+  test/data/merkle_serialization_sapling.json \
+  test/data/merkle_witness_serialization_sapling.json \
+  test/data/merkle_path_sapling.json \
+  test/data/merkle_commitments_sapling.json \
+  test/data/g1_compressed.json \
+  test/data/g2_compressed.json \
+  test/data/sapling_key_components.json
+
+RAW_TEST_FILES = test/data/alertTests.raw
+
+GENERATED_TEST_FILES = $(JSON_TEST_FILES:.json=.json.h) $(RAW_TEST_FILES:.raw=.raw.h)
+
+VDS_TESTS =\
+  test/arith_uint256_tests.cpp \
+  test/bignum.h \
+  test/addrman_tests.cpp \
+  test/alert_tests.cpp \
+  test/allocator_tests.cpp \
+  test/base32_tests.cpp \
+  test/base58_tests.cpp \
+  test/base64_tests.cpp \
+  test/bip32_tests.cpp \
+  test/bloom_tests.cpp \
+  test/checkblock_tests.cpp \
+  test/Checkpoints_tests.cpp \
+  test/coins_tests.cpp \
+  test/compress_tests.cpp \
+  test/crypto_tests.cpp \
+  test/DoS_tests.cpp \
+  test/equihash_tests.cpp \
+  test/getarg_tests.cpp \
+  test/hash_tests.cpp \
+  test/key_tests.cpp \
+  test/main_tests.cpp \
+  test/mempool_tests.cpp \
+  test/miner_tests.cpp \
+  test/mruset_tests.cpp \
+  test/multisig_tests.cpp \
+  test/netbase_tests.cpp \
+  test/pmt_tests.cpp \
+  test/policyestimator_tests.cpp \
+  test/pow_tests.cpp \
+  test/raii_event_tests.cpp \
+  test/reverselock_tests.cpp \
+  test/rpc_tests.cpp \
+  test/sanity_tests.cpp \
+  test/scheduler_tests.cpp \
+  test/script_P2SH_tests.cpp \
+  test/script_tests.cpp \
+  test/scriptnum_tests.cpp \
+  test/serialize_tests.cpp \
+  test/sighash_tests.cpp \
+  test/sigopcount_tests.cpp \
+  test/skiplist_tests.cpp \
+  test/test_bitcoin.cpp \
+  test/test_bitcoin.h \
+  test/timedata_tests.cpp \
+  test/torcontrol_tests.cpp \
+  test/transaction_tests.cpp \
+  test/uint256_tests.cpp \
+  test/univalue_tests.cpp \
+  test/util_tests.cpp \
+  test/sha256compress_tests.cpp
+
+if ENABLE_WALLET
+VDS_TESTS += \
+  wallet/test/wallet_tests.cpp 
+endif
+
+test_test_bitcoin_SOURCES = $(VDS_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
+test_test_bitcoin_CPPFLAGS = -fopenmp $(VDS_INCLUDES) -I$(builddir)/test/ $(TESTDEFS) $(EVENT_CFLAGS) $(PROTOBUF_CFLAGS)
+test_test_bitcoin_LDADD = \
+  $(LIBBITCOIN_SERVER) \
+  $(LIBVDS_SERVER) \
+  $(LIBVDS_SQLITE)
+
+if ENABLE_WALLET
+test_test_bitcoin_LDADD += $(LIBVDS_WALLET)
+endif
+
+test_test_bitcoin_LDADD += \
+  $(LIBVDS_CLI) \
+  $(LIBVDS_COMMON) \
+  $(LIBBITCOIN_COMMON) \
+  $(LIBUNIVALUE) \
+  $(LIBVDS_LIGHTNODE) \
+  $(LIBVDS_UTIL) \
+  $(LIBBITCOIN_UTIL) \
+  $(LIBBITCOIN_WALLET) \
+  $(LIBBITCOIN_ZMQ) \
+  $(LIBVDS_CONSENSUS) \
+  $(LIBBITCOIN_CONSENSUS) \
+  $(LIBVDS_CRYPTO) \
+  $(LIBBITCOIN_CRYPTO) \
+  $(LIBVDS) \
+  $(LIBSNARK) \
+  $(LIBLEVELDB) \
+  $(LIBMEMENV) \
+  $(LIBCRYPTOPP) \
+  $(LIBSECP256K1) \
+  $(PROTOBUF_LIBS)
+
+
+test_test_bitcoin_LDADD += $(LIBVDS_CONSENSUS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(LIBVDS) $(LIBSNARK) $(LIBVDS_LIBS)
+test_test_bitcoin_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) -static
+
+if ENABLE_ZMQ
+test_test_bitcoin_LDADD += $(LIBVDS_ZMQ)
+test_test_bitcoin_LDADD += $(ZMQ_LIBS)
+endif
+
+if ENABLE_PROTON
+test_test_bitcoin_LDADD += $(LIBVDS_PROTON)
+test_test_bitcoin_LDADD += $(PROTON_LIBS)
+endif
+
+test_test_bitcoin_LDADD += $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSECP256K1) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS)
+
+# test_bitcoin_fuzzy binary #
+test_test_bitcoin_fuzzy_SOURCES = test/test_bitcoin_fuzzy.cpp
+test_test_bitcoin_fuzzy_CPPFLAGS = $(AM_CPPFLAGS) $(VDS_INCLUDES)
+test_test_bitcoin_fuzzy_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+test_test_bitcoin_fuzzy_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+
+test_test_bitcoin_fuzzy_LDADD = \
+  $(LIBUNIVALUE) \
+  $(LIBVDS_LIGHTNODE) \
+  $(LIBVDS_SERVER) \
+  $(LIBVDS_COMMON) \
+  $(LIBVDS_UTIL) \
+  $(LIBVDS_CONSENSUS) \
+  $(LIBVDS_CRYPTO) \
+  $(LIBVDS) \
+  $(LIBSECP256K1)
+
+test_test_bitcoin_fuzzy_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS) $(LIBSNARK) $(LIBVDS_LIBS)
+#
+
+nodist_test_test_bitcoin_SOURCES = $(GENERATED_TEST_FILES)
+
+$(VDS_TESTS): $(GENERATED_TEST_FILES)
+
+CLEAN_VDS_TEST = test/*.gcda test/*.gcno $(GENERATED_TEST_FILES)
+
+CLEANFILES += $(CLEAN_VDS_TEST)
+
+bitcoin_test: $(TEST_BINARY)
+
+bitcoin_test_check: $(TEST_BINARY) FORCE
+	$(MAKE) check-TESTS TESTS=$^
+
+bitcoin_test_clean : FORCE
+	rm -f $(CLEAN_VDS_TEST) $(test_test_bitcoin_OBJECTS) $(TEST_BINARY)
+
+check-local:
+	@echo "Running test/bitcoin-util-test.py..."
+	$(AM_V_at)srcdir=$(srcdir) PYTHONPATH=$(builddir)/test $(srcdir)/test/bitcoin-util-test.py
+	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C secp256k1 check
+	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C univalue check
+
+%.json.h: %.json
+	@$(MKDIR_P) $(@D)
+	@echo "namespace json_tests{" > $@
+	@echo "static unsigned const char $(*F)[] = {" >> $@
+	@$(HEXDUMP) -v -e '8/1 "0x%02x, "' -e '"\n"' $< | $(SED) -e 's/0x  ,//g' >> $@
+	@echo "};};" >> $@
+	@echo "Generated $@"
+
+%.raw.h: %.raw
+	@$(MKDIR_P) $(@D)
+	@echo "namespace alert_tests{" > $@
+	@echo "static unsigned const char $(*F)[] = {" >> $@
+	@$(HEXDUMP) -v -e '8/1 "0x%02x, "' -e '"\n"' $< | $(SED) -e 's/0x  ,//g' >> $@
+	@echo "};};" >> $@
+	@echo "Generated $@"

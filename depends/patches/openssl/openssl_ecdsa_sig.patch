@@ -1,0 +1,53 @@
+diff -r -u openssl-1.0.2l/crypto/ec/ec_asn1.c openssl-1.0.2l_new/crypto/ec/ec_asn1.c
+--- openssl-1.0.2l/crypto/ec/ec_asn1.c	2017-05-25 20:54:38.000000000 +0800
++++ openssl-1.0.2l_new/crypto/ec/ec_asn1.c	2017-08-29 17:08:42.829923806 +0800
+@@ -1329,3 +1329,24 @@
+         *out += buf_len;
+     return buf_len;
+ }
++
++void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps)
++{
++    if (pr != NULL)
++        *pr = sig->r;
++    if (ps != NULL)
++        *ps = sig->s;
++}
++
++int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
++{
++    if (r == NULL || s == NULL)
++        return 0;
++    BN_clear_free(sig->r);
++    BN_clear_free(sig->s);
++    sig->r = r;
++    sig->s = s;
++    return 1;
++}
++
++
+diff -r -u openssl-1.0.2l/crypto/ec/ec.h openssl-1.0.2l_new/crypto/ec/ec.h
+--- openssl-1.0.2l/crypto/ec/ec.h	2017-05-25 20:54:34.000000000 +0800
++++ openssl-1.0.2l_new/crypto/ec/ec.h	2017-08-29 17:07:04.543666771 +0800
+@@ -984,6 +984,21 @@
+ 
+ # endif
+ 
++/** Accessor for r and s fields of ECDSA_SIG
++ *  \param  sig  pointer to ECDSA_SIG pointer
++ *  \param  pr   pointer to BIGNUM pointer for r (may be NULL)
++ *  \param  ps   pointer to BIGNUM pointer for s (may be NULL)
++ */
++void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
++
++/** Setter for r and s fields of ECDSA_SIG
++ *  \param  sig  pointer to ECDSA_SIG pointer
++ *  \param  r    pointer to BIGNUM for r (may be NULL)
++ *  \param  s    pointer to BIGNUM for s (may be NULL)
++ */
++int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s);
++
++
+ # define ECParameters_dup(x) ASN1_dup_of(EC_KEY,i2d_ECParameters,d2i_ECParameters,x)
+ 
+ # ifndef __cplusplus

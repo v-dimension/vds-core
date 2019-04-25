@@ -1,0 +1,6 @@
+--style=kr
+--pad-oper
+--pad-comma
+--pad-header
+--align-pointer=type
+--align-reference=type

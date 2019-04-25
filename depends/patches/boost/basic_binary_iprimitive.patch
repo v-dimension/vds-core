@@ -1,0 +1,63 @@
+--- boost_1_66_0-orig/boost/archive/impl/basic_binary_iprimitive.ipp	2017-12-14 07:56:48.000000000 +0800
++++ boost_1_66_0/boost/archive/impl/basic_binary_iprimitive.ipp	2019-02-14 13:10:58.610375658 +0800
+@@ -47,30 +47,31 @@ basic_binary_iprimitive<Archive, Elem, T
+                 "size of int"
+             )
+         );
++
+     this->This()->load(size);
+-    if(sizeof(long) != size)
+-        boost::serialization::throw_exception(
+-            archive_exception(
+-                archive_exception::incompatible_native_format,
+-                "size of long"
+-            )
+-        );
++    //if(sizeof(long) != size)
++    //    boost::serialization::throw_exception(
++    //        archive_exception(
++    //            archive_exception::incompatible_native_format,
++    //            "size of long"
++    //        )
++    //    );
+     this->This()->load(size);
+-    if(sizeof(float) != size)
+-        boost::serialization::throw_exception(
+-            archive_exception(
+-                archive_exception::incompatible_native_format,
+-                "size of float"
+-            )
+-        );
++    //if(sizeof(float) != size)
++    //    boost::serialization::throw_exception(
++    //        archive_exception(
++    //            archive_exception::incompatible_native_format,
++    //            "size of float"
++    //        )
++    //    );
+     this->This()->load(size);
+-    if(sizeof(double) != size)
+-        boost::serialization::throw_exception(
+-            archive_exception(
+-                archive_exception::incompatible_native_format,
+-                "size of double"
+-            )
+-        );
++    //if(sizeof(double) != size)
++    //    boost::serialization::throw_exception(
++    //        archive_exception(
++    //            archive_exception::incompatible_native_format,
++    //            "size of double"
++    //        )
++    //    );
+ 
+     // for checking endian
+     int i;
+@@ -82,6 +83,7 @@ basic_binary_iprimitive<Archive, Elem, T
+                 "endian setting"
+             )
+         );
++
+ }
+ 
+ #ifndef BOOST_NO_CWCHAR

@@ -1,0 +1,115 @@
+TESTS += vds-gtest
+noinst_PROGRAMS += vds-gtest
+
+# tool for generating our public parameters.
+# test_checktransaction.cpp MUST be before
+# any test that calls SelectParams().
+vds_gtest_SOURCES = \
+	gtest/main.cpp \
+	gtest/utils.cpp \
+	gtest/test_checktransaction.cpp \
+	gtest/json_test_vectors.cpp \
+	gtest/json_test_vectors.h
+# These tests are order-dependent, because they
+# depend on global state (see #1539)
+if ENABLE_WALLET
+vds_gtest_SOURCES += \
+	wallet/gtest/test_wallet_zkeys.cpp
+endif
+vds_gtest_SOURCES += \
+	gtest/test_tautology.cpp \
+	gtest/test_deprecation.cpp \
+	gtest/test_equihash.cpp \
+	gtest/test_httprpc.cpp \
+	gtest/test_keys.cpp \
+	gtest/test_keystore.cpp \
+	gtest/test_noteencryption.cpp \
+	gtest/test_mempool.cpp \
+	gtest/test_merkletree.cpp \
+	gtest/test_miner.cpp \
+	gtest/test_pow.cpp \
+	gtest/test_random.cpp \
+	gtest/test_rpc.cpp \
+	gtest/test_sapling_note.cpp \
+	gtest/test_transaction.cpp \
+	gtest/test_transaction_builder.cpp \
+	gtest/test_validation.cpp \
+	gtest/test_circuit.cpp \
+	gtest/test_txid.cpp \
+	gtest/test_libzcash_utils.cpp \
+	gtest/test_proofs.cpp \
+	gtest/test_paymentdisclosure.cpp \
+	gtest/test_pedersen_hash.cpp \
+	gtest/test_checkblock.cpp \
+	gtest/test_zip32.cpp
+if ENABLE_WALLET
+vds_gtest_SOURCES += \
+	wallet/gtest/test_wallet.cpp
+endif
+
+vds_gtest_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(VDS_INCLUDES)
+vds_gtest_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+
+vds_gtest_LDADD = \
+  -lgtest \
+  -lgmock \
+  $(LIBBITCOIN_SERVER) \
+  $(LIBVDS_SERVER) \
+  $(LIBVDS_SQLITE) \
+  $(LIBVDS_CLI) \
+  $(LIBVDS_COMMON) \
+  $(LIBBITCOIN_COMMON) \
+  $(LIBUNIVALUE) \
+  $(LIBVDS_LIGHTNODE) \
+  $(LIBVDS_UTIL) \
+  $(LIBBITCOIN_UTIL) \
+  $(LIBBITCOIN_WALLET) \
+  $(LIBBITCOIN_ZMQ) \
+  $(LIBVDS_CONSENSUS) \
+  $(LIBBITCOIN_CONSENSUS) \
+  $(LIBVDS_CRYPTO) \
+  $(LIBBITCOIN_CRYPTO) \
+  $(LIBVDS) \
+  $(LIBSNARK) \
+  $(LIBLEVELDB) \
+  $(LIBMEMENV) \
+  $(LIBCRYPTOPP) \
+  $(BOOST_LIBS) \
+  $(BOOST_UNIT_TEST_FRAMEWORK_LIB) \
+  $(LIBSECP256K1) \
+  $(PROTOBUF_LIBS)
+
+if ENABLE_ZMQ
+vds_gtest_LDADD += $(LIBVDS_ZMQ) $(ZMQ_LIBS)
+endif
+if ENABLE_WALLET
+vds_gtest_LDADD += $(LIBVDS_WALLET)
+endif
+
+vds_gtest_LDADD += \
+  $(LIBVDS_CONSENSUS) \
+  $(BDB_LIBS) \
+  $(SSL_LIBS) \
+  $(CRYPTO_LIBS) \
+  $(MINIUPNPC_LIBS) \
+  $(EVENT_PTHREADS_LIBS) \
+  $(EVENT_LIBS) \
+  $(LIBVDS) \
+  $(LIBSNARK) \
+  $(LIBVDS_LIBS) \
+  $(BOOST_LIBS) \
+  $(BOOST_UNIT_TEST_FRAMEWORK_LIB) \
+  $(LIBSECP256K1)
+
+if ENABLE_PROTON
+vds_gtest_LDADD += $(LIBVDS_PROTON) $(PROTON_LIBS)
+endif
+
+
+vds_gtest_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) -static
+
+vds-gtest_check: vds-gtest FORCE
+	./vds-gtest
+
+vds-gtest-expected-failures: vds-gtest FORCE
+	./vds-gtest --gtest_filter=*DISABLED_* --gtest_also_run_disabled_tests

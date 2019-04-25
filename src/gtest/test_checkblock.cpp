@@ -1,0 +1,220 @@
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+
+#include "consensus/validation.h"
+#include "validation.h"
+#include "vds/Proof.hpp"
+
+class MockCValidationState : public CValidationState
+{
+public:
+    MOCK_METHOD5(DoS, bool(int level, bool ret,
+                           unsigned char chRejectCodeIn, std::string strRejectReasonIn,
+                           bool corruptionIn));
+    MOCK_METHOD3(Invalid, bool(bool ret,
+                               unsigned char _chRejectCode, std::string _strRejectReason));
+    MOCK_METHOD1(Error, bool(std::string strRejectReasonIn));
+    MOCK_CONST_METHOD0(IsValid, bool());
+    MOCK_CONST_METHOD0(IsInvalid, bool());
+    MOCK_CONST_METHOD0(IsError, bool());
+    MOCK_CONST_METHOD1(IsInvalid, bool(int& nDoSOut));
+    MOCK_CONST_METHOD0(CorruptionPossible, bool());
+    MOCK_CONST_METHOD0(GetRejectCode, unsigned char());
+    MOCK_CONST_METHOD0(GetRejectReason, std::string());
+};
+
+TEST(CheckBlock, VersionTooLow)
+{
+    auto verifier = libzcash::ProofVerifier::Strict();
+
+    CBlock block;
+    block.nVersion = 1;
+
+    MockCValidationState state;
+    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "version-too-low", false)).Times(1);
+    EXPECT_FALSE(CheckBlock(block, state, verifier, false, false));
+}
+
+
+// Test that a Sprout tx with negative version is still rejected
+// by CheckBlock under Sprout consensus rules.
+TEST(CheckBlock, BlockSproutRejectsBadVersion)
+{
+    SelectParams(CBaseChainParams::MAIN);
+
+    CMutableTransaction mtx;
+    mtx.vin.resize(1);
+    mtx.vin[0].prevout.SetNull();
+    mtx.vin[0].scriptSig = CScript() << 1 << OP_0;
+    mtx.vout.resize(1);
+    mtx.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    mtx.vout[0].nValue = 0;
+    mtx.vout.push_back(CTxOut(
+                           GetBlockSubsidy(1, Params().GetConsensus()) / 5,
+                           CTxOut::NORMAL,
+                           Params().GetFoundersRewardScriptAtHeight(1)));
+    mtx.nVersion = -1;
+
+    CTransaction tx {mtx};
+    CBlock block;
+    block.vtx.push_back(MakeTransactionRef(tx));
+
+    MockCValidationState state;
+    CBlockIndex indexPrev {Params().GenesisBlock()};
+
+    auto verifier = libzcash::ProofVerifier::Strict();
+
+    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-txns-version-too-low", false)).Times(1);
+    EXPECT_FALSE(CheckBlock(block, state, verifier, false, false));
+}
+
+
+class ContextualCheckBlockTest : public ::testing::Test
+{
+protected:
+    virtual void SetUp()
+    {
+        SelectParams(CBaseChainParams::MAIN);
+    }
+
+    // Returns a valid but empty mutable transaction at block height 1.
+    CMutableTransaction GetFirstBlockCoinbaseTx()
+    {
+        CMutableTransaction mtx;
+
+        // No inputs.
+        mtx.vin.resize(1);
+        mtx.vin[0].prevout.SetNull();
+
+        // Set height to 1.
+        mtx.vin[0].scriptSig = CScript() << 1 << OP_0;
+
+        // Give it a single zero-valued, always-valid output.
+        mtx.vout.resize(1);
+        mtx.vout[0].scriptPubKey = CScript() << OP_TRUE;
+        mtx.vout[0].nValue = 0;
+
+        // Give it a Founder's Reward vout for height 1.
+        mtx.vout.push_back(CTxOut(
+                               GetBlockSubsidy(1, Params().GetConsensus()) / 5,
+                               CTxOut::NORMAL,
+                               Params().GetFoundersRewardScriptAtHeight(1)));
+
+        return mtx;
+    }
+
+    // Expects a height-1 block containing a given transaction to pass
+    // ContextualCheckBlock. This is used in accepting (Sprout-Sprout,
+    // Overwinter-Overwinter, ...) tests. You should not call it without
+    // calling a SCOPED_TRACE macro first to usefully label any failures.
+    void ExpectValidBlockFromTx(const CTransaction& tx)
+    {
+        // Create a block and add the transaction to it.
+        CBlock block;
+        block.vtx.push_back(MakeTransactionRef(tx));
+
+        // Set the previous block index to the genesis block.
+        CBlockIndex indexPrev {Params().GenesisBlock()};
+
+        // We now expect this to be a valid block.
+        MockCValidationState state;
+        EXPECT_TRUE(ContextualCheckBlock(block, state, &indexPrev));
+    }
+
+    // Expects a height-1 block containing a given transaction to fail
+    // ContextualCheckBlock. This is used in rejecting (Sprout-Overwinter,
+    // Overwinter-Sprout, ...) tests. You should not call it without
+    // calling a SCOPED_TRACE macro first to usefully label any failures.
+    void ExpectInvalidBlockFromTx(const CTransaction& tx, int level, std::string reason)
+    {
+        // Create a block and add the transaction to it.
+        CBlock block;
+        block.vtx.push_back(MakeTransactionRef(tx));
+
+        // Set the previous block index to the genesis block.
+        CBlockIndex indexPrev {Params().GenesisBlock()};
+
+        // We now expect this to be an invalid block, for the given reason.
+        MockCValidationState state;
+        EXPECT_CALL(state, DoS(level, false, REJECT_INVALID, reason, false)).Times(1);
+        EXPECT_FALSE(ContextualCheckBlock(block, state, &indexPrev));
+    }
+
+};
+
+
+TEST_F(ContextualCheckBlockTest, BadCoinbaseHeight)
+{
+    // Put a transaction in a block with no height in scriptSig
+    CMutableTransaction mtx = GetFirstBlockCoinbaseTx();
+    mtx.vin[0].scriptSig = CScript() << OP_0;
+    mtx.vout.pop_back(); // remove the FR output
+
+    CBlock block;
+    block.vtx.push_back(MakeTransactionRef(mtx));
+
+    // Treating block as genesis should pass
+    MockCValidationState state;
+    EXPECT_TRUE(ContextualCheckBlock(block, state, NULL));
+
+    // Give the transaction a Founder's Reward vout
+    mtx.vout.push_back(CTxOut(
+                           GetBlockSubsidy(1, Params().GetConsensus()) / 5,
+                           CTxOut::NORMAL,
+                           Params().GetFoundersRewardScriptAtHeight(1)));
+
+    // Treating block as non-genesis should fail
+    CTransaction tx2 {mtx};
+    block.vtx[0] = MakeTransactionRef(tx2);
+    CBlock prev;
+    CBlockIndex indexPrev {prev};
+    indexPrev.nHeight = 0;
+    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-cb-height", false)).Times(1);
+    EXPECT_FALSE(ContextualCheckBlock(block, state, &indexPrev));
+
+    // Setting to an incorrect height should fail
+    mtx.vin[0].scriptSig = CScript() << 2 << OP_0;
+    CTransaction tx3 {mtx};
+    block.vtx[0] = MakeTransactionRef(tx3);
+    EXPECT_CALL(state, DoS(100, false, REJECT_INVALID, "bad-cb-height", false)).Times(1);
+    EXPECT_FALSE(ContextualCheckBlock(block, state, &indexPrev));
+
+    // After correcting the scriptSig, should pass
+    mtx.vin[0].scriptSig = CScript() << 1 << OP_0;
+    CTransaction tx4 {mtx};
+    block.vtx[0] = MakeTransactionRef(tx4);
+    EXPECT_TRUE(ContextualCheckBlock(block, state, &indexPrev));
+}
+
+
+// Test that a block evaluated under Sapling rules can contain Sapling transactions.
+TEST_F(ContextualCheckBlockTest, BlockSaplingRulesAcceptSaplingTx)
+{
+    SelectParams(CBaseChainParams::REGTEST);
+
+    CMutableTransaction mtx = GetFirstBlockCoinbaseTx();
+
+    SCOPED_TRACE("BlockSaplingRulesAcceptSaplingTx");
+    ExpectValidBlockFromTx(CTransaction(mtx));
+}
+
+// Test block evaluated under Sapling rules cannot contain non-Sapling transactions.
+TEST_F(ContextualCheckBlockTest, BlockSaplingRulesRejectOtherTx)
+{
+    SelectParams(CBaseChainParams::REGTEST);
+
+    CMutableTransaction mtx = GetFirstBlockCoinbaseTx();
+
+    // Set the version to Sprout+JoinSplit (but nJoinSplit will be 0).
+    mtx.nVersion = 2;
+
+    {
+        SCOPED_TRACE("BlockSaplingRulesRejectSproutTx");
+        ExpectInvalidBlockFromTx(CTransaction(mtx), 100, "tx-overwinter-active");
+    }
+
+    {
+        SCOPED_TRACE("BlockSaplingRulesRejectOverwinterTx");
+        ExpectInvalidBlockFromTx(CTransaction(mtx), 100, "bad-sapling-tx-version-group-id");
+    }
+}

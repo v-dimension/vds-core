@@ -1,0 +1,11 @@
+--- boost_1_66_0-orig/boost/asio/detail/consuming_buffers.hpp	2018-10-23 10:47:17.887825000 +0800
++++ boost_1_66_0/boost/asio/detail/consuming_buffers.hpp	2018-10-23 10:45:03.998940280 +0800
+@@ -102,7 +102,7 @@ public:
+ 
+     std::advance(next, next_elem_);
+     std::size_t elem_offset = next_elem_offset_;
+-    while (next != end && max_size > 0 && result.count < result.max_buffers)
++    while (next != end && max_size > 0 && (result.count) < result.max_buffers)
+     {
+       Buffer next_buf = Buffer(*next) + elem_offset;
+       result.elems[result.count] = boost::asio::buffer(next_buf, max_size);
